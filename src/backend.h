@@ -14,16 +14,14 @@
 
 #define SPEED 1000
 
-#define POS_AMOUNT 4
+#define POS_AMOUNT 7
 
 #include "tetris.h"
 
 
-void createForm(form_t *, int, int, int);
-void formGeneration(form_t *, FigureType_t);
-void freeForm(form_t *);
+void createFigure(form_t *, int);
 void turnForm(form_t *);
-void figuresGenerate(GameInfo_t *gi);
+void spawnFigures(GameInfo_t *gi);
 void figuresUpdate(GameInfo_t *gi);
 
 void getUserInput(GameInfo_t *gi);
@@ -34,6 +32,7 @@ void moveLeft(GameInfo_t *gi);
 void moveRight(GameInfo_t *gi);
 void moveDown(GameInfo_t *gi);
 void rotate(GameInfo_t *gi);
+void rotate90(form_t src, form_t *dest, int size);
 
 void shift(GameInfo_t *gi);
 void finishGame(GameInfo_t *gi);
@@ -49,9 +48,8 @@ bool checkRightBorder(int field[HEIGHT][WIDTH], form_t form);
 bool checkBottomBorder(int field[HEIGHT][WIDTH], form_t form);
 bool checkRotateByBorder(int field[HEIGHT][WIDTH], form_t form);
 
-void createForm(form_t *form, int size, int posAmount, int type);
-void formGeneration(form_t *form, FigureType_t type);
-void freeForm(form_t *form);
+void figureGenerate(form_t *form, FigureType_t type);
+void freeFigure(form_t *form);
 
 void fillFieldInfo(GameInfo_t *info);
 

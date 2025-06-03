@@ -12,8 +12,10 @@ void gameLoop() {
     game.state = START;
 
     bool stopF = FALSE;
+    srand(time(NULL));
 
     while (!stopF) {
+
 
         if (game.state == GAMEOVER)
             stopF = TRUE;

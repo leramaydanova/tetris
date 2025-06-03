@@ -3,8 +3,8 @@
 void getUserInput(GameInfo_t *gi) {
     gi->action = -1;
 
-    if (gi->state == START) timeout(-1);
-    else timeout(10);
+    // if (gi->state == START) timeout(-1);
+    timeout(10);
 
     int ch = getch();
 
@@ -38,7 +38,7 @@ void getUserInput(GameInfo_t *gi) {
     }
 }
 
-void updateCurrentState(GameInfo_t *gi) {
+void updateCurrentState(GameInfo_t *gi) { // добавить появление верхней фигуры на экране
     if (gi->state != START) {
         timer(gi);
     }
@@ -47,7 +47,7 @@ void updateCurrentState(GameInfo_t *gi) {
         gameInit(gi);
     }
     if (gi->state == SPAWN) {
-        figuresGenerate(gi);
+        spawnFigures(gi);
     }
     if (gi->state == MOVING) {
         moveFigure(gi);
@@ -64,28 +64,27 @@ void updateCurrentState(GameInfo_t *gi) {
     }
 }
 
-void figuresGenerate(GameInfo_t *gi) {
+void spawnFigures(GameInfo_t *gi) {
     figuresUpdate(gi);
-    int type1 = gi->figures.now;
-    int type2 = gi->figures.next;
+    FigureType_t type1 = gi->figures.now;
+    FigureType_t type2 = gi->figures.next;
     if (gi->now.form) {
-        freeForm(&(gi->now));
-        freeForm(&(gi->next));
+        freeFigure(&(gi->now));
+        freeFigure(&(gi->next));
     }
-    formGeneration(&(gi->now), type1);
-    formGeneration(&(gi->next), type2);
+    figureGenerate(&(gi->now), type1);
+    figureGenerate(&(gi->next), type2);
     gi->state = MOVING;
 }
 
 void figuresUpdate(GameInfo_t *gi) {
-    srand(time(NULL));
-
-    if (!&(gi->now)) {
-        gi->figures.now = rand() % 4;
-    } else {
+    if (!gi->now.form) {
+        gi->figures.now = rand() % POS_AMOUNT;
+    }
+     else {
         gi->figures.now = gi->figures.next;
     }
-    gi->figures.next = rand() % 4;
+    gi->figures.next = rand() % POS_AMOUNT;
 }
 
 void moveFigure(GameInfo_t *gi) {
@@ -127,13 +126,30 @@ void moveRight(GameInfo_t *gi) {
 }
 
 void moveDown(GameInfo_t *gi) {
-    gi->speed = 100;
+    gi->speed = 50;
 }
 
 void rotate(GameInfo_t *gi) {
     int noMove = checkRotateByBorder(gi->field, gi->now);
-    if (!noMove)
-        gi->now.pos = (gi->now.pos + 1) % gi->now.posAmount;
+    if (!noMove) {
+        form_t temp;
+        int size = gi->now.size;
+        createFigure(&temp, size);
+        rotate90(gi->now, &temp, size);
+        temp.x = gi->now.x;
+        temp.y = gi->now.y;
+
+        freeFigure(&(gi->now));
+        createFigure(&(gi->now), size);
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                gi->now.form[i][j] = temp.form[i][j];
+            }
+        }
+        gi->now.x = temp.x;
+        gi->now.y = temp.y;
+        freeFigure(&temp);
+    }
 }
 
 void shift(GameInfo_t *gi) {
@@ -142,8 +158,8 @@ void shift(GameInfo_t *gi) {
 }
 
 void finishGame(GameInfo_t *gi) {
-    freeForm(&(gi->now));
-    freeForm(&(gi->next));
+    freeFigure(&(gi->now));
+    freeFigure(&(gi->next));
 
     gi->state = GAMEOVER;
 }
@@ -176,7 +192,7 @@ void timer(GameInfo_t *gi) {
 void updateGameField(GameInfo_t *gi) {
     for (int i = 0; i < gi->now.size; i++) {
         for (int j = 0; j < gi->now.size; j++) {
-            if (gi->now.form[gi->now.pos][i][j]) {
+            if (gi->now.form[i][j]) {
                 gi->field[i + gi->now.y][j + gi->now.x] = BLOCKCOLOR;
             }
         }
@@ -185,24 +201,24 @@ void updateGameField(GameInfo_t *gi) {
 }
 
 void deleteFullLines(GameInfo_t *gi) {
-    timeout(100);
     int stopF = 0;
-    for (int i = 2; i < HEIGHT - 1; i++) {
+    for (int i = 1; i < HEIGHT; i++) {
         stopF = 0;
-        for (int j = 1; j < WIDTH - 1 && !stopF; j++) {
+        for (int j = 0; j < WIDTH && !stopF; j++) {
             if (gi->field[i][j] != BLOCKCOLOR)
                 stopF = 1;
         }
         if (!stopF) {
-            for (int m = 1; m < WIDTH - 1; m++) {
-                for (int n = i; n >= 2; n--) {
+            for (int m = 0; m < WIDTH; m++)
+            {
+                for (int n = i; n >= 1; n--) {
                     int temp = gi->field[n][m];
                     gi->field[n][m] = gi->field[n - 1][m];
                     gi->field[n - 1][m] = temp;
                 }
             }
-            for (int j = 1; j < WIDTH - 1; j++) {
-                gi->field[1][j] = ' ';
+            for (int j = 0; j < WIDTH; j++) {
+                gi->field[0][j] = ' ';
             }
         }
     }
@@ -211,8 +227,8 @@ void deleteFullLines(GameInfo_t *gi) {
 
 bool checkTopBorder(GameInfo_t *gi) {
     bool res = FALSE;
-    for (int j = 1; j < WIDTH - 1 && !res; j++) {
-        if (gi->field[1][j] == BLOCKCOLOR)
+    for (int j = 0; j < WIDTH && !res; j++) {
+        if (gi->field[0][j] == BLOCKCOLOR)
             res = TRUE;
     }
     return res;
@@ -229,8 +245,8 @@ bool checkLeftBorder(int field[HEIGHT][WIDTH], form_t form) {
     for (int i = 0; i < form.size && !res; i++) {
         stopF = 0;
         for (int j = 0; j < form.size && !res && !stopF; j++) {
-            if (form.form[form.pos][i][j]) {
-                if (field[i + y][j + x - 1] != ' ') {
+            if (form.form[i][j]) {
+                if (j + x - 1 < 0 || field[i + y][j + x - 1] != ' ') {
                     res = TRUE;
                 }
                 stopF = 1;
@@ -251,8 +267,9 @@ bool checkRightBorder(int field[HEIGHT][WIDTH], form_t form) {
     for (int i = 0; i < form.size && !res; i++) {
         stopF = 0;
         for (int j = form.size - 1; j >= 0 && !res && !stopF; j--) {
-            if (form.form[form.pos][i][j]) {
-                if (field[i + y][j + x + 1] != ' ') {
+            if (form.form[i][j]) {
+                if (j + x + 1 >= WIDTH || field[i + y][j + x + 1] != ' ')
+                {
                     res = TRUE;
                 }
                 stopF = 1;
@@ -263,7 +280,7 @@ bool checkRightBorder(int field[HEIGHT][WIDTH], form_t form) {
 }
 
 bool checkBottomBorder(int field[HEIGHT][WIDTH], form_t form) {
-    bool res = 0;
+    bool res = FALSE;
 
     int x = form.x;
     int y = form.y;
@@ -273,8 +290,9 @@ bool checkBottomBorder(int field[HEIGHT][WIDTH], form_t form) {
     for (int j = 0; j < form.size && !res; j++) {
         stopF = 0;
         for (int i = form.size - 1; i >= 0 && !res && !stopF; i--) {
-            if (form.form[form.pos][i][j]) {
-                if (field[i + y + 1][j + x] != ' ') {
+            if (form.form[i][j]) {
+                if (i + y + 1 >= HEIGHT || field[i + y + 1][j + x] != ' ')
+                {
                     res = TRUE;
                 }
                 stopF = 1;
@@ -285,18 +303,20 @@ bool checkBottomBorder(int field[HEIGHT][WIDTH], form_t form) {
 }
 
 bool checkRotateByBorder(int field[HEIGHT][WIDTH], form_t form) {
-    int currentPos = form.pos;
-    int nextPos = (form.pos + 1) % form.posAmount;
-
     bool res = FALSE;
 
     int x = form.x;
     int y = form.y;
 
+    form_t temp;
+    int size = form.size;
+    createFigure(&temp, size);
+    rotate90(form, &temp, size);
+
     for (int i = 0; i < form.size && !res; i++) {
         for (int j = 0; j < form.size && !res; j++) {
-            if (form.form[nextPos][i][j] && !form.form[currentPos][i][j]) {
-                if (i + y >= HEIGHT - 1 || i + y >= HEIGHT - 1 || j + x <= 0 || j + x >= WIDTH - 1 || field[i + y][j + x] != ' ') {
+            if (temp.form[i][j] && !form.form[i][j]) {
+                if (i + y >= HEIGHT || j + x < 0 || j + x >= WIDTH || field[i + y][j + x] != ' ') {
                     res = TRUE;
                 }
             }
@@ -305,52 +325,29 @@ bool checkRotateByBorder(int field[HEIGHT][WIDTH], form_t form) {
     return res;
 }
 
-void createForm(form_t *form, int size, int posAmount, int type) {
-    form->form = calloc(4, sizeof(int **));
-    for (int i = 0; i < posAmount; i++)
-    {
-        form->form[i] = calloc(size, sizeof(int *));
-        for (int j = 0; j < size; j++) {
-            form->form[i][j] = calloc(size, sizeof(int));
-        }
+void createFigure(form_t *form, int size) {
+    form->form = calloc(size, sizeof(int *));
+    for (int i = 0; i < size; i++) {
+        form->form[i] = calloc(size, sizeof(int));
     }
-    form->x = (10 - size) / 2;
+    form->x = (WIDTH - size) / 2;
     form->y = 1;
     form->size = size;
-    form->posAmount = posAmount;
-    form->pos = 0;
-    form->type = type;
 }
 
-void formGeneration(form_t *form, FigureType_t type) {
+void figureGenerate(form_t *form, FigureType_t type) {
     switch (type) {
-    case Tfigure: // добавить фцию поворота фигуры, изменить массив фигуры на **, добавить оставшиеся фигуры
+    case Tfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
     {
         int size = 3;
-        int amount = 4;
-        createForm(form, size, amount, type);
-        int formFill[4][3][3] = {
+        createFigure(form, size);
+        int formFill[3][3] = 
             {{0, 1, 0},
              {1, 1, 1},
-             {0, 0, 0}},
-            {{0, 1, 0},
-             {0, 1, 1},
-             {0, 1, 0}},
-            {{0, 0, 0},
-             {1, 1, 1},
-             {0, 1, 0}},
-            {{0, 1, 0},
-             {1, 1, 0},
-             {0, 1, 0}},
-        };
-        for (int n = 0; n < amount; n++)
-        {
-            for (int i = 0; i < size; i++)
-            {
-                for (int j = 0; j < size; j++)
-                {
-                    form->form[n][i][j] = formFill[n][i][j];
-                }
+             {0, 0, 0}};
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                form->form[i][j] = formFill[i][j];
             }
         }
         break;
@@ -358,42 +355,24 @@ void formGeneration(form_t *form, FigureType_t type) {
     case Ofigure:
     {
         int size = 2;
-        int amount = 1;
-        createForm(form, size, amount, type);
-        for (int i = 0; i < size; i++)
-        {
-            form->form[0][0][i] = 1;
-            form->form[0][1][i] = 1;
+        createFigure(form, size);
+        for (int i = 0; i < size; i++) {
+            form->form[0][i] = 1;
+            form->form[1][i] = 1;
         }
         break;
     }
     case Lfigure:
     {
         int size = 3;
-        int amount = 4;
-        createForm(form, size, amount, type);
-        int formFill[4][3][3] = {
+        createFigure(form, size);
+        int formFill[3][3] = 
             {{0, 1, 0},
              {0, 1, 0},
-             {0, 1, 1}},
-            {{0, 0, 0},
-             {1, 1, 1},
-             {1, 0, 0}},
-            {{1, 1, 0},
-             {0, 1, 0},
-             {0, 1, 0}},
-            {{0, 0, 1},
-             {1, 1, 1},
-             {0, 0, 0}},
-        };
-        for (int n = 0; n < amount; n++)
-        {
-            for (int i = 0; i < size; i++)
-            {
-                for (int j = 0; j < size; j++)
-                {
-                    form->form[n][i][j] = formFill[n][i][j];
-                }
+             {0, 1, 1}};
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                form->form[i][j] = formFill[i][j];
             }
         }
         break;
@@ -401,26 +380,68 @@ void formGeneration(form_t *form, FigureType_t type) {
     case Ifigure:
     {
         int size = 4;
-        int amount = 2;
-        createForm(form, size, amount, type);
-        int formFill[2][4][4] = {
+        createFigure(form, size);
+        int formFill[4][4] = 
             {{0, 0, 1, 0},
              {0, 0, 1, 0},
              {0, 0, 1, 0},
-             {0, 0, 1, 0}},
-            {{0, 0, 0, 0},
-             {0, 0, 0, 0},
-             {1, 1, 1, 1},
-             {0, 0, 0, 0}},
-        };
-        for (int n = 0; n < amount; n++)
+             {0, 0, 1, 0}};
+        for (int i = 0; i < size; i++)
         {
-            for (int i = 0; i < size; i++)
+            for (int j = 0; j < size; j++)
             {
-                for (int j = 0; j < size; j++)
-                {
-                    form->form[n][i][j] = formFill[n][i][j];
-                }
+                form->form[i][j] = formFill[i][j];
+            }
+        }
+        break;
+    }
+    case Sfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    {
+        int size = 3;
+        createFigure(form, size);
+        int formFill[3][3] =
+            {{0, 0, 0},
+             {1, 1, 0},
+             {0, 1, 1}};
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                form->form[i][j] = formFill[i][j];
+            }
+        }
+        break;
+    }
+    case Zfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    {
+        int size = 3;
+        createFigure(form, size);
+        int formFill[3][3] =
+            {{0, 0, 0},
+             {0, 1, 1},
+             {1, 1, 0}};
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                form->form[i][j] = formFill[i][j];
+            }
+        }
+        break;
+    }
+    case Jfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    {
+        int size = 3;
+        createFigure(form, size);
+        int formFill[3][3] =
+            {{0, 1, 0},
+             {0, 1, 0},
+             {1, 1, 0}};
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                form->form[i][j] = formFill[i][j];
             }
         }
         break;
@@ -430,36 +451,28 @@ void formGeneration(form_t *form, FigureType_t type) {
     }
 }
 
-void freeForm(form_t * form) {
-    for (int n = 0; n < form->posAmount; n++) {
-        for (int i = 0; i < form->size; i++) {
-            free(form->form[n][i]);
-        }
-        free(form->form[n]);
+void freeFigure(form_t * form) {
+    for (int i = 0; i < form->size; i++) {
+        free(form->form[i]);
     }
+    free(form->form);
 }
 
 void fillFieldInfo(GameInfo_t *info) {
-    for (int i = 1; i < 21; i++)
+    for (int i = 0; i < HEIGHT; i++)
     {
-        for (int j = 1; j < 11; j++)
+        for (int j = 0; j < WIDTH; j++)
         {
             info->field[i][j] = ' ';
         }
     }
-    for (int j = 1; j < 11; j++)
-    {
-        info->field[0][j] = 0x2500; // дефами прописать коды
-        info->field[21][j] = 0x2500;
-    }
-    for (int i = 1; i < 21; i++)
-    {
-        info->field[i][0] = 0x2502;
-        info->field[i][11] = 0x2502;
-    }
+}
 
-    info->field[0][0] = 0x250C;
-    info->field[0][11] = 0x2510;
-    info->field[21][0] = 0x2514;
-    info->field[21][11] = 0x2518;
+void rotate90(form_t src, form_t *dest, int size) {
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++)
+        {
+            dest->form[j][size - 1 - i] = src.form[i][j];
+        }
+    }
 }

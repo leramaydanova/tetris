@@ -8,8 +8,8 @@
 #include <string.h>
 
 
-#define WIDTH 12
-#define HEIGHT 22
+#define WIDTH 10
+#define HEIGHT 20
 #define BLOCKCOLOR 0x2588
 
 #define WIN_INIT()         \
@@ -20,12 +20,16 @@
     noecho(); \
     curs_set(0)
 
-    typedef enum {
-        Tfigure,
-        Ofigure,
-        Lfigure,
-        Ifigure,
-    } FigureType_t;
+typedef enum
+{
+    Tfigure,
+    Ofigure,
+    Lfigure,
+    Ifigure,
+    Sfigure,
+    Zfigure,
+    Jfigure,
+} FigureType_t;
 
 typedef struct
 {
@@ -35,12 +39,10 @@ typedef struct
 
 typedef struct
 {
-    int ***form;
+    int **form;
     int size;
     int x;
     int y;
-    int posAmount;
-    int pos;
     FigureType_t type;
 } form_t;
 

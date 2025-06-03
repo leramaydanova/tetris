@@ -4,7 +4,6 @@
 #include "tetris.h"
 
 void render(GameInfo_t* gi);
-void showStart();
 void showGameOver();
 void updateField(GameInfo_t *gi, int (*field)[WIDTH]);
 void printField(int (*field)[WIDTH]);
