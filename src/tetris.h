@@ -61,25 +61,34 @@ typedef enum
 {
     Start,
     Pause,
+    Terminate,
     Left,
     Right,
-    Down,
-    Rotate,
     Up,
-    Terminate,
+    Down,
     Action,
-} UserInput_t;
+} UserAction_t;
+
+// typedef struct
+// {
+//     int field[HEIGHT][WIDTH]; // сменить на **
+//     Figures_t figures;
+//     form_t next;
+//     double speed;
+//     State_t state;
+//     UserAction_t action;
+//     long long time;
+// } GameInfo_t;
 
 typedef struct
 {
-    int field[HEIGHT][WIDTH];
-    Figures_t figures;
-    form_t now;
-    form_t next;
-    double speed;
-    State_t state;
-    UserInput_t action;
-    long long time;
+    int **field; // сменить на **
+    int **next;
+    int score;
+    int high_score;
+    int level;
+    int speed;
+    int pause;
 } GameInfo_t;
 
 #include "backend.h"

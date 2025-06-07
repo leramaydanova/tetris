@@ -3,7 +3,7 @@
 
 #include "tetris.h"
 
-void render(GameInfo_t* gi);
+void render(GameInfo_t* gi, State_t state);
 void showGameOver();
 void updateField(GameInfo_t *gi, int (*field)[WIDTH]);
 void printField(int (*field)[WIDTH]);

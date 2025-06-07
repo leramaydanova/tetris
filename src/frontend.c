@@ -2,16 +2,16 @@
 
 void printStart();
 
-void render(GameInfo_t *gi)
+void render(GameInfo_t *gi, State_t state)
 {
     clear();
     refresh();
 
-    if (gi->state == START) {
+    if (state == START) {
         printStart();
     }
         
-    else if (gi->state == GAMEOVER)
+    else if (state == GAMEOVER)
         showGameOver();
 
     else {
@@ -61,14 +61,7 @@ void showGameOver() {
 }
 
 void updateField(GameInfo_t *gi, int (*field)[WIDTH]) {
-    fillField(gi, field); // можно один раз прописать в другом месте чтобы не перерисовывать 
-    for (int i = 0; i < gi->now.size; i++) {
-        for (int j = 0; j < gi->now.size; j++) {
-            if (gi->now.form[i][j]) {
-                field[i + gi->now.y][j + gi->now.x] = BLOCKCOLOR;
-            }
-        }
-    }
+    fillField(gi, field);
 }
 
 void printField(int (*field)[WIDTH]) {
@@ -77,8 +70,8 @@ void printField(int (*field)[WIDTH]) {
 
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            if (field[i][j] == BLOCKCOLOR)
-                mvwprintw(fieldWindow, i + 1, j + 1, "%lc", field[i][j]);
+            if (field[i][j])
+                mvwprintw(fieldWindow, i + 1, j + 1, "%lc", BLOCKCOLOR);
         }
     }
 
@@ -103,9 +96,13 @@ void showNextFigure(GameInfo_t *gi) {
 
     mvwprintw(nextFigureWindow, 0, 0, "Next figure:");
 
-    for (int i = 0; i < gi->next.size; i++) {
-        for (int j = 0; j < gi->next.size; j++) {
-            if (gi->next.form[i][j])
+    int size = 0;
+    while (gi->next[size++])
+        ;
+
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - 1; j++) {
+            if (gi->next[i][j])
                 mvwprintw(nextFigureWindow, 3 + i, j, "%lc", BLOCKCOLOR);
         }
     }

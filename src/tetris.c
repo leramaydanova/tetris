@@ -8,25 +8,26 @@ int main(void) {
 }
 
 void gameLoop() {
-    GameInfo_t game;
-    game.state = START;
 
     bool stopF = FALSE;
     srand(time(NULL));
 
     while (!stopF) {
 
+        userInput(getAction(), TRUE);
 
-        if (game.state == GAMEOVER)
+        GameInfo_t game = updateCurrentState();
+        State_t *state = getState();
+
+        render(&game, *state);
+
+        if (*state == GAMEOVER)
             stopF = TRUE;
 
-        render(&game);
 
-        if (!stopF) {
-            getUserInput(&game);
-        
-            updateCurrentState(&game);
-        }
+        // if (!stopF) {
+            
+        // }
 
     }
 }
