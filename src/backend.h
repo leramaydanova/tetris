@@ -20,20 +20,6 @@
 
 #include "tetris.h"
 
-typedef struct
-{
-    int curField[HEIGHT][WIDTH];
-    int **field;
-    Figures_t figures;
-    form_t now;
-    form_t next;
-    double speed;
-    State_t state;
-    UserAction_t action;
-    long long time;
-    int pause;
-} GameState_t;
-
 void createFigure(form_t *, int);
 void turnForm(form_t *);
 void spawnFigures(GameState_t *gi);
@@ -62,7 +48,6 @@ long long getTime();
 void timer(GameState_t *gi);
 void updateGameField(GameState_t *gi);
 void deleteFullLines(GameState_t *gi);
-void cleanFigure(GameState_t *gs);
 
 bool checkTopBorder(GameState_t *gi);
 bool checkLeftBorder(int **field, form_t form); // переделать на передачу структуры игры
@@ -71,7 +56,7 @@ bool checkBottomBorder(int **field, form_t form);
 bool checkRotateByBorder(int **field, form_t form);
 
 void figureGenerate(form_t *form, FigureType_t type);
-void freeFigure(form_t *form);
+void freeFigure(form_t *form); 
 
 void fillFieldInfo(GameState_t *info);
 

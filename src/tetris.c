@@ -16,10 +16,12 @@ void gameLoop() {
 
         userInput(getAction(), TRUE);
 
-        GameInfo_t game = updateCurrentState();
+        GameState_t* gs = getGame();
+        GameInfo_t gi = updateCurrentState();
         State_t *state = getState();
 
-        render(&game, *state);
+        render(&gi, gs, *state);
+
 
         if (*state == GAMEOVER)
             stopF = TRUE;

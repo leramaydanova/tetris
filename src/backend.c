@@ -45,7 +45,7 @@ State_t* getState() {
 }
 
 GameState_t* getGame() {
-    static GameState_t game = {.state = START, .field = NULL};
+    static GameState_t game = {.state = START, .field = NULL, .next = NULL};
     return &game;
 }
 
@@ -54,6 +54,7 @@ void userInput(UserAction_t action, bool hold) {
     if (!hold) return; // ? why for
 
     GameState_t *game = getGame();
+
     game->action = action;
 
     if (game->state != START) {
@@ -66,30 +67,27 @@ void userInput(UserAction_t action, bool hold) {
     if (game->state == SPAWN) {
         spawnFigures(game);
     }
+
     if (game->state == MOVING) {
-        cleanFigure(game);
         moveFigure(game);
+        // cleanFigure(game);
     }
     if (game->state == SHIFTING) {
-        cleanFigure(game);
+        // cleanFigure(game);
         shift(game);
     }
+
     if (game->state == ATTACHING) {
         updateGameField(game);
         deleteFullLines(game);
     }
+
+
     if (game->state == GAMEOVER || action == Terminate) {
         finishGame(game);
     } 
-}
+    
 
-void cleanFigure(GameState_t *gs) {
-    for (int i = 0; i < gs->now.size; i++) {
-        for (int j = 0; j < gs->now.size; j++) {
-            if (gs->now.form[i][j])
-                gs->field[i + gs->now.y][j + gs->now.x] = 0;
-        }
-    }
 }
 
 GameInfo_t updateCurrentState() {
@@ -99,25 +97,9 @@ GameInfo_t updateCurrentState() {
 
     // потом убрать
 
-    if (gs->field) {
-        gi.field = gs->field;
-        for (int i = 0; i < HEIGHT; i++) {
-            gi.field[i] = gs->field[i];
-        }
-    }
+    gi.field = gs->field;
 
     gi.next = gs->next.form;
-    for (int i = 0; i < gs->next.size; i++){
-        gi.next[i] = gs->next.form[i];
-    }
-
-    for (int i = 0; i < gs->now.size; i++) {
-        for (int j = 0; j < gs->now.size; j++)
-        {
-            if (gs->now.form[i][j])
-                gs->field[i + gs->now.y][j + gs->now.x] = 1;
-        }
-    }
 
     gi.speed = gs->speed;
     *state = gs->state;
@@ -217,6 +199,7 @@ void figuresUpdate(GameState_t *gi)
 
 void moveFigure(GameState_t *gi)
 {
+
     switch(gi->action) {
         case Left:
             moveLeft(gi);
