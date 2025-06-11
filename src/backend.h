@@ -17,16 +17,15 @@
 #define SPEED 1000
 
 #define POS_AMOUNT 7
+#define FIGURE_SIZE 4
 
 #include "tetris.h"
 
-void createFigure(form_t *, int);
+void createFigure(form_t *, int, int);
 void turnForm(form_t *);
 void spawnFigures(GameState_t *gi);
 void figuresUpdate(GameState_t *gi);
 
-// void userInput(GameInfo_t *gi);
-// void updateCurrentState(GameInfo_t *gi);
 GameInfo_t updateCurrentState();
 UserAction_t getAction();
 GameState_t *getGame();

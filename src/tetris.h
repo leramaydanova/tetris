@@ -91,17 +91,18 @@ typedef struct
     int pause;
 } GameInfo_t;
 
-
 typedef struct
 {
     int **field;
     Figures_t figures;
     form_t now;
     form_t next;
-    double speed;
     State_t state;
     UserAction_t action;
     long long time;
+    int score;
+    int level;
+    int speed;
     int pause;
 } GameState_t;
 
