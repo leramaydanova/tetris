@@ -1,24 +1,39 @@
 #include "frontend.h"
 
-void printStart();
-
 void render(GameInfo_t *gi, State_t state)
 {
-    clear();
-    refresh();
-
-    if (state == START) {
-        printStart();
-    }
-        
-    else if (state == GAMEOVER)
-        showGameOver();
+    if (gi->pause && state != START && state != GAMEOVER)
+        printPauseScreen();
 
     else {
-        printField(gi);
-        printInfo(gi);
-        showNextFigure(gi);
+        clear();
+        refresh();    
+
+        if (state == START) {
+            printStart();
+        }
+            
+        else if (state == GAMEOVER)
+            showGameOver();
+
+        else
+        {
+            printField(gi);
+            printInfo(gi);
+            showNextFigure(gi);
+        }
     }
+
+}
+
+void printPauseScreen() {
+    WINDOW *pauseWindow = newwin(4, WIDTH - 2, (HEIGHT - 10) / 2, 2);
+    // HEIGHT + 2, WIDTH + 2,
+    box(pauseWindow, 0, 0);
+
+    mvwprintw(pauseWindow, 1, 2, "PAUSE");
+    wrefresh(pauseWindow);
+    delwin(pauseWindow);
 }
 
 void printStart() {
@@ -62,18 +77,18 @@ void printField(GameInfo_t* gi) {
 }
 
 void printInfo(GameInfo_t *gi) {
-    WINDOW *infoWindow = newwin(5, 15, 0, WIDTH + 5);
+    WINDOW *infoWindow = newwin(7, 20, 0, WIDTH + 5);
     box(infoWindow, 0, 0);
 
     mvwprintw(infoWindow, 1, 1, "score: %d", gi->score);
-    mvwprintw(infoWindow, 3, 1, "level: %d", gi->level);
+    mvwprintw(infoWindow, 3, 1, "high score: %d", gi->high_score);
+    mvwprintw(infoWindow, 5, 1, "level: %d", gi->level);
     wrefresh(infoWindow);
     delwin(infoWindow);
 }
 
 void showNextFigure(GameInfo_t *gi) {
     WINDOW *nextFigureWindow = newwin(10, 15, 12, WIDTH + 5);
-    box(nextFigureWindow, 0, 0);
     mvwprintw(nextFigureWindow, 1, 2, "Next figure:");
 
     for (int i = 0; i < FIGURE_SIZE; i++) {

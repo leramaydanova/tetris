@@ -65,11 +65,16 @@ void userInput(UserAction_t action, bool hold) {
 
     GameState_t *game = getGame();
 
-    game->action = action;
+    if (game->state != START && game->state != GAMEOVER && action == Pause) {
+        if (game->pause)
+            game->pause = 0;
+        else if (!game->pause) {
+            game->pause = 1;
+            return;
+        }
+    }
 
-    // if (game->state != START) {
-    //     timer(game);
-    // }
+    game->action = action;
 
     if (game->state == START && action == Start) {
         gameInit(game);
@@ -86,6 +91,7 @@ void userInput(UserAction_t action, bool hold) {
     if (game->state == MOVING) {
         moveFigure(game);
     }
+
     if (game->state == SHIFTING) {
         shift(game);
     }
@@ -109,12 +115,7 @@ GameInfo_t updateCurrentState() {
     State_t *state = getState();
 
     if (gs->state != SPAWN) {
-        for (int i = 0; i < gs->now.size; i++) {
-            for (int j = 0; j < gs->now.size; j++) {
-                if (gs->now.form[i][j])
-                    gs->field[i + gs->now.y][j + gs->now.x] = 1;
-            }
-        }
+        updateField(gs);
     }
 
     gi.field = gs->field;
@@ -124,13 +125,33 @@ GameInfo_t updateCurrentState() {
     gi.speed = gs->speed;
     gi.score = gs->score;
     gi.level = gs->level;
+    gi.pause = gs->pause;
     *state = gs->state;
 
-    // FILE *file = fopen("highscore.txt", "w");
-    // gi.high_score = atoi(fgets("%d", 10, file));
-    // fclose(file);
+    updateHighScore(&gi);
 
     return gi;
+}
+
+void updateField(GameState_t *gs) {
+    for (int i = 0; i < gs->now.size; i++) {
+        for (int j = 0; j < gs->now.size; j++) {
+            if (gs->now.form[i][j])
+                gs->field[i + gs->now.y][j + gs->now.x] = 1;
+        }
+    }
+}
+
+void updateHighScore(GameInfo_t *gi) {
+    FILE *file = fopen("brick_game/tetris/highscore.txt", "r");
+
+    if (file) {
+        char *num = (char *)calloc(10, sizeof(char));
+        fgets(num, 10, file);
+        gi->high_score = atoi(num);
+        free(num);
+        fclose(file);
+    }
 }
 
 void spawnFigures(GameState_t *gi)
@@ -150,12 +171,12 @@ void spawnFigures(GameState_t *gi)
 void figuresUpdate(GameState_t *gi)
 {
     if (!gi->now.form) {
-        gi->figures.now = rand() % POS_AMOUNT;
+        gi->figures.now = clock() % POS_AMOUNT;
     }
      else {
         gi->figures.now = gi->figures.next;
     }
-    gi->figures.next = rand() % POS_AMOUNT;
+    gi->figures.next = clock() % POS_AMOUNT;
 }
 
 void moveFigure(GameState_t *gi)
@@ -208,7 +229,7 @@ void rotate(GameState_t *gi)
 {
     int noMove = checkRotateByBorder(gi->field, gi->now);
     if (!noMove) {
-        form_t temp;
+        Figure_t temp;
         int size = gi->now.size;
         createFigure(&temp, size, 0);
         rotate90(gi->now, &temp, size);
@@ -236,6 +257,12 @@ void shift(GameState_t *gi)
 
 void finishGame(GameState_t *gi)
 {
+    gi->state = GAMEOVER;
+
+    if (gi->state != START) {
+        return;
+    }
+
     freeFigure(&(gi->now));
     freeFigure(&(gi->next));
 
@@ -243,7 +270,6 @@ void finishGame(GameState_t *gi)
         free(gi->field[i]);
     free(gi->field);
 
-    gi->state = GAMEOVER;
 }
 
 void gameInit(GameState_t *gi)
@@ -257,6 +283,7 @@ void gameInit(GameState_t *gi)
     gi->state = SPAWN;
     gi->score = 0;
     gi->level = 0;
+    gi->pause = 0;
 
     gi->field = calloc(HEIGHT, sizeof(int *));
     for (int i = 0; i < HEIGHT; i++)
@@ -296,7 +323,7 @@ void deleteFullLines(GameState_t *gi)
 {
     int stopF = 0;
     int lines = 0;
-    for (int i = 1; i < HEIGHT; i++) {
+    for (int i = 0; i < HEIGHT; i++) {
         stopF = 0;
         for (int j = 0; j < WIDTH && !stopF; j++) {
             if (gi->field[i][j] != 1)
@@ -304,42 +331,56 @@ void deleteFullLines(GameState_t *gi)
         }
         if (!stopF) {
             lines++;
-            for (int m = 0; m < WIDTH; m++)
-            {
-                for (int n = i; n >= 1; n--) {
-                    int temp = gi->field[n][m];
-                    gi->field[n][m] = gi->field[n - 1][m];
-                    gi->field[n - 1][m] = temp;
-                }
+            for (int n = i; n > 1; n--) {
+                int* temp = gi->field[n];
+                gi->field[n] = gi->field[n - 1];
+                gi->field[n - 1] = temp;
             }
             for (int j = 0; j < WIDTH; j++) {
-                gi->field[0][j] = 0;
+                gi->field[1][j] = 0;
             }
         }
     }
 
-    switch (lines) {
-        case 1: gi->score += 100; break;
-        case 2: gi->score += 300; break;
-        case 3: gi->score += 700; break;
-        case 4: gi->score += 1500; break;
-    }
+    gi->score += scoring(lines);
 
-    // FILE *high = fopen("highscore.txt", "wr");
-    // char* score = fgets("%d", 10, high);
+    getHighScore(gi->score);
 
-    // if (atoi(score) < gi->score) {
-    //     fprintf(high, "%d", gi->score);
-    // }
-    // fclose(high);
-
-
-    if (checkTopBorder(gi)) gi->state = GAMEOVER;
+    if (checkTopBorder(gi))
+        gi->state = GAMEOVER;
     else gi->state = SPAWN;
 }
 
-bool checkTopBorder(GameState_t *gi)
-{
+int scoring(int num) {
+    int res = 0;
+    switch (num) {
+        case 1: res += 100; break;
+        case 2: res += 300; break;
+        case 3: res += 700; break;
+        case 4: res += 1500; break;
+    }
+
+    return res;
+}
+
+void getHighScore(int score) {
+    FILE *high = fopen("brick_game/tetris/highscore.txt", "rt");
+    char *num = (char *)calloc(10, sizeof(char));
+    num = fgets(num, 10, high);
+
+    fclose(high);
+    high = fopen("brick_game/tetris/highscore.txt", "wt");
+
+    if (atoi(num) < score) {
+        fprintf(high, "%d", score);
+    } else {
+        fprintf(high, "%s", num);
+    }
+    free(num);
+    fclose(high);
+}
+
+bool checkTopBorder(GameState_t *gi) {
     bool res = FALSE;
     for (int j = 0; j < WIDTH && !res; j++) {
         if (gi->field[0][j] == 1)
@@ -348,7 +389,7 @@ bool checkTopBorder(GameState_t *gi)
     return res;
 }
 
-bool checkLeftBorder(int **field, form_t form) {
+bool checkLeftBorder(int **field, Figure_t form) {
     bool res = 0;
 
     int x = form.x;
@@ -370,7 +411,7 @@ bool checkLeftBorder(int **field, form_t form) {
     return res;
 }
 
-bool checkRightBorder(int **field, form_t form) {
+bool checkRightBorder(int **field, Figure_t form) {
     bool res = FALSE;
 
     int x = form.x;
@@ -393,7 +434,7 @@ bool checkRightBorder(int **field, form_t form) {
     return res;
 }
 
-bool checkBottomBorder(int **field, form_t form) {
+bool checkBottomBorder(int **field, Figure_t form) {
     bool res = FALSE;
 
     int x = form.x;
@@ -416,13 +457,13 @@ bool checkBottomBorder(int **field, form_t form) {
     return res;
 }
 
-bool checkRotateByBorder(int **field, form_t form) {
+bool checkRotateByBorder(int **field, Figure_t form) {
     bool res = FALSE;
 
     int x = form.x;
     int y = form.y;
 
-    form_t temp;
+    Figure_t temp;
     int size = form.size;
     createFigure(&temp, size, 0);
     rotate90(form, &temp, size);
@@ -439,7 +480,7 @@ bool checkRotateByBorder(int **field, form_t form) {
     return res;
 }
 
-void createFigure(form_t *form, int size, int add) {
+void createFigure(Figure_t *form, int size, int add) {
     form->form = calloc(FIGURE_SIZE, sizeof(int *));
     for (int i = 0; i < FIGURE_SIZE; i++) {
         form->form[i] = calloc(FIGURE_SIZE, sizeof(int));
@@ -449,9 +490,9 @@ void createFigure(form_t *form, int size, int add) {
     form->size = size;
 }
 
-void figureGenerate(form_t *form, FigureType_t type) {
+void figureGenerate(Figure_t *form, FigureType_t type) {
     switch (type) {
-    case Tfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    case Tfigure:
     {
         int size = 3;
         createFigure(form, size, 0);
@@ -491,7 +532,7 @@ void figureGenerate(form_t *form, FigureType_t type) {
         form->form[3][2] = 1;
         break;
     }
-    case Sfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    case Sfigure:
     {
         int size = 3;
         createFigure(form, size, -1);
@@ -501,7 +542,7 @@ void figureGenerate(form_t *form, FigureType_t type) {
         form->form[2][2] = 1;
         break;
     }
-    case Zfigure: // добавить оставшиеся фигуры, разбить по функциям создание фигур
+    case Zfigure:
     {
         int size = 3;
         createFigure(form, size, -1);
@@ -526,7 +567,7 @@ void figureGenerate(form_t *form, FigureType_t type) {
     }
 }
 
-void freeFigure(form_t * form) {
+void freeFigure(Figure_t * form) {
     for (int i = 0; i < form->size; i++) {
         free(form->form[i]);
     }
@@ -536,18 +577,7 @@ void freeFigure(form_t * form) {
     form->size = 0;
 }
 
-void fillFieldInfo(GameState_t *info)
-{
-    for (int i = 0; i < HEIGHT; i++)
-    {
-        for (int j = 0; j < WIDTH; j++)
-        {
-            info->field[i][j] = 0;
-        }
-    }
-}
-
-void rotate90(form_t src, form_t *dest, int size) {
+void rotate90(Figure_t src, Figure_t *dest, int size) {
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++)
         {

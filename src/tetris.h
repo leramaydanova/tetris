@@ -35,7 +35,7 @@ typedef struct
 {
     FigureType_t now;
     FigureType_t next;
-} Figures_t;
+} CurrentFigures_t;
 
 typedef struct
 {
@@ -44,7 +44,7 @@ typedef struct
     int x;
     int y;
     FigureType_t type;
-} form_t;
+} Figure_t;
 
 typedef enum
 {
@@ -69,20 +69,9 @@ typedef enum
     Action,
 } UserAction_t;
 
-// typedef struct
-// {
-//     int field[HEIGHT][WIDTH]; // сменить на **
-//     Figures_t figures;
-//     form_t next;
-//     double speed;
-//     State_t state;
-//     UserAction_t action;
-//     long long time;
-// } GameInfo_t;
-
 typedef struct
 {
-    int **field; // сменить на **
+    int **field;
     int **next;
     int score;
     int high_score;
@@ -91,12 +80,11 @@ typedef struct
     int pause;
 } GameInfo_t;
 
-typedef struct
-{
+typedef struct {
     int **field;
-    Figures_t figures;
-    form_t now;
-    form_t next;
+    CurrentFigures_t figures;
+    Figure_t now;
+    Figure_t next;
     State_t state;
     UserAction_t action;
     long long time;
@@ -106,8 +94,8 @@ typedef struct
     int pause;
 } GameState_t;
 
-#include "backend.h"
-#include "frontend.h"
+#include "brick_game/tetris/backend.h"
+#include "gui/cli/frontend.h"
 
 void gameLoop();
 
