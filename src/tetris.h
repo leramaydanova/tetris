@@ -80,20 +80,6 @@ typedef struct
     int pause;
 } GameInfo_t;
 
-typedef struct {
-    int **field;
-    CurrentFigures_t figures;
-    Figure_t now;
-    Figure_t next;
-    State_t state;
-    UserAction_t action;
-    long long time;
-    int score;
-    int level;
-    int speed;
-    int pause;
-} GameState_t;
-
 #include "brick_game/tetris/backend.h"
 #include "gui/cli/frontend.h"
 

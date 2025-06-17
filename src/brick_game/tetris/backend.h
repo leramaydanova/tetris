@@ -21,6 +21,21 @@
 
 #include "../../tetris.h"
 
+
+typedef struct {
+    int **field;
+    CurrentFigures_t figures;
+    Figure_t now;
+    Figure_t next;
+    State_t state;
+    UserAction_t action;
+    long long time;
+    int score;
+    int level;
+    int speed;
+    int pause;
+} GameState_t;
+
 void createFigure(Figure_t *, int, int);
 void turnForm(Figure_t *);
 void spawnFigures(GameState_t *gi);
@@ -31,7 +46,7 @@ UserAction_t getAction();
 GameState_t *getGame();
 State_t* getState();
 
-void userInput(UserAction_t action, bool hold);
+void userInput(UserAction_t action);
 
 void moveFigure(GameState_t *gi);
 void moveLeft(GameState_t *gi);
@@ -62,5 +77,6 @@ void updateField(GameState_t *gs);
 int scoring(int num);
 void getHighScore(int num);
 void updateHighScore(GameInfo_t *gi);
+
 
 #endif

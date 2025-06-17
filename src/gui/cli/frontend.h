@@ -10,5 +10,6 @@ void printInfo(GameInfo_t *gi);
 void printStart();
 void showNextFigure(GameInfo_t *gi);
 void printPauseScreen();
+void printControls();
 
 #endif

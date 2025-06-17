@@ -1,28 +1,23 @@
 #include "tetris.h"
 
 int main(void) {
-    WIN_INIT();
-    gameLoop();
-    endwin();
-    return 0;
+  WIN_INIT();
+  gameLoop();
+  endwin();
+  return 0;
 }
 
 void gameLoop() {
+  bool stopF = FALSE;
 
-    bool stopF = FALSE;
+  while (!stopF) {
+    userInput(getAction());
 
-    while (!stopF) {
-       
-        userInput(getAction(), TRUE);
+    GameInfo_t gi = updateCurrentState();
+    State_t *state = getState();
 
-        GameInfo_t gi = updateCurrentState();
-        State_t *state = getState();
+    render(&gi, *state);
 
-        render(&gi, *state);
- 
-
-        if (*state == GAMEOVER)
-            stopF = TRUE;
-
-    }
+    if (*state == GAMEOVER) stopF = TRUE;
+  }
 }
