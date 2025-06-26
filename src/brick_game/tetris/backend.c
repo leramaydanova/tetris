@@ -45,7 +45,7 @@ State_t *getState() {
 }
 
 GameState_t *getGame() {
-  static GameState_t game = {.state = START, .field = NULL, .next = NULL};
+  static GameState_t game = {.state = START, .field = NULL};
   return &game;
 }
 
@@ -63,15 +63,17 @@ void userInput(UserAction_t action) {
   if (game->state != START && game->state != GAMEOVER && action == Pause) {
     if (game->pause)
       game->pause = 0;
-    else if (!game->pause) {
+    else {
       game->pause = 1;
     }
   }
 
-  if (game->pause)
-    return;
-  else if (action == Terminate)
-    finishGame(game);
+  if (game->pause && action != Terminate) return;
+
+  if (action == Terminate && game->state != START && game->state != GAMEOVER) {
+    game->pause = 0;
+    game->state = GAMEOVER;
+  }
 
   game->action = action;
 
@@ -82,7 +84,7 @@ void userInput(UserAction_t action) {
     spawnFigures(game);
   }
 
-  if (game->state != START) {
+  if (game->state != START && game->state != GAMEOVER) {
     cleanFigure(game);
     timer(game);
   }
@@ -98,11 +100,11 @@ void userInput(UserAction_t action) {
   if (game->state == ATTACHING) {
     updateGameField(game);
     deleteFullLines(game);
-  }
-
-  if (game->state == GAMEOVER || action == Terminate) {
+  } else if (game->state == GAMEOVER) {
     finishGame(game);
   }
+
+  if (action == Terminate && game->state == START) game->state = GAMEOVER;
 }
 
 GameInfo_t updateCurrentState() {
@@ -120,11 +122,10 @@ GameInfo_t updateCurrentState() {
 
   gi.speed = gs->speed;
   gi.score = gs->score;
+  gi.high_score = gs->high_score;
   gi.level = gs->level;
   gi.pause = gs->pause;
   *state = gs->state;
-
-  updateHighScore(&gi);
 
   return gi;
 }
@@ -132,137 +133,135 @@ GameInfo_t updateCurrentState() {
 void updateField(GameState_t *gs) {
   for (int i = 0; i < gs->now.size; i++) {
     for (int j = 0; j < gs->now.size; j++) {
-      if (gs->now.form[i][j]) gs->field[i + gs->now.y][j + gs->now.x] = 1;
+      if (gs->now.form[i][j])
+        gs->field[i + gs->now.y][j + gs->now.x] = gs->now.form[i][j];
     }
   }
 }
 
-void updateHighScore(GameInfo_t *gi) {
-  FILE *file = fopen("brick_game/tetris/highscore.txt", "rt");
+void updateHighScore(GameState_t *gs) {
+  FILE *file = fopen(PATH_SCORE, "rt");
 
   if (file) {
-    char *num = (char *)calloc(10, sizeof(char));
-    fgets(num, 10, file);
-    gi->high_score = atoi(num);
-    free(num);
+    fscanf(file, "%d", &gs->high_score);
     fclose(file);
   }
 }
 
-void spawnFigures(GameState_t *gi) {
-  figuresUpdate(gi);
-  FigureType_t type1 = gi->figures.now;
-  FigureType_t type2 = gi->figures.next;
-  if (gi->now.form) {
-    freeFigure(&(gi->now));
-    freeFigure(&(gi->next));
+void spawnFigures(GameState_t *gs) {
+  figuresUpdate(gs);
+  FigureType_t type1 = gs->figures.now;
+  FigureType_t type2 = gs->figures.next;
+  if (gs->now.form) {
+    freeFigure(&(gs->now));
+    freeFigure(&(gs->next));
   }
-  figureGenerate(&(gi->now), type1);
-  figureGenerate(&(gi->next), type2);
-  gi->state = MOVING;
+  figureGenerate(&(gs->now), type1);
+  figureGenerate(&(gs->next), type2);
+  gs->state = MOVING;
 }
 
-void figuresUpdate(GameState_t *gi) {
-  if (!gi->now.form) {
-    gi->figures.now = clock() % POS_AMOUNT;
+void figuresUpdate(GameState_t *gs) {
+  if (!gs->now.form) {
+    gs->figures.now = clock() % POS_AMOUNT;
   } else {
-    gi->figures.now = gi->figures.next;
+    gs->figures.now = gs->figures.next;
   }
-  gi->figures.next = clock() % POS_AMOUNT;
+  gs->figures.next = clock() % POS_AMOUNT;
 }
 
-void moveFigure(GameState_t *gi) {
-  switch (gi->action) {
+void moveFigure(GameState_t *gs) {
+  switch (gs->action) {
     case Left:
-      moveLeft(gi);
+      moveLeft(gs);
       break;
     case Right:
-      moveRight(gi);
+      moveRight(gs);
       break;
     case Down:
-      moveDown(gi);
+      moveDown(gs);
       break;
     case Up:
     case Action:
-      rotate(gi);
+      rotate(gs);
       break;
     default:
       break;
   }
 
-  if (gi->action != Down) gi->speed = SPEED;
+  if (gs->action != Down) gs->speed = SPEED + gs->addSpeed;
 
-  if (checkBottomBorder(gi->field, gi->now)) gi->state = ATTACHING;
+  if (checkBottomBorder(gs)) gs->state = ATTACHING;
 }
 
-void moveLeft(GameState_t *gi) {
-  int noMove = checkLeftBorder(gi->field, gi->now);
-  if (!noMove) gi->now.x--;
+void moveLeft(GameState_t *gs) {
+  int noMove = checkLeftBorder(gs);
+  if (!noMove) gs->now.x--;
 }
 
-void moveRight(GameState_t *gi) {
-  int noMove = checkRightBorder(gi->field, gi->now);
-  if (!noMove) gi->now.x++;
+void moveRight(GameState_t *gs) {
+  int noMove = checkRightBorder(gs);
+  if (!noMove) gs->now.x++;
 }
 
-void moveDown(GameState_t *gi) { gi->speed = 50; }
+void moveDown(GameState_t *gs) { gs->speed = 50; }
 
-void rotate(GameState_t *gi) {
-  int noMove = checkRotateByBorder(gi->field, gi->now);
+void rotate(GameState_t *gs) {
+  int noMove = checkRotateByBorder(gs);
   if (!noMove) {
     Figure_t temp;
-    int size = gi->now.size;
+    int size = gs->now.size;
     createFigure(&temp, size, 0);
-    rotate90(gi->now, &temp, size);
-    temp.x = gi->now.x;
-    temp.y = gi->now.y;
+    rotate90(gs->now, &temp, size);
+    temp.x = gs->now.x;
+    temp.y = gs->now.y;
 
-    freeFigure(&(gi->now));
-    createFigure(&(gi->now), size, 0);
+    freeFigure(&(gs->now));
+    createFigure(&(gs->now), size, 0);
     for (int i = 0; i < size; i++) {
       for (int j = 0; j < size; j++) {
-        gi->now.form[i][j] = temp.form[i][j];
+        gs->now.form[i][j] = temp.form[i][j];
       }
     }
-    gi->now.x = temp.x;
-    gi->now.y = temp.y;
+    gs->now.x = temp.x;
+    gs->now.y = temp.y;
     freeFigure(&temp);
   }
 }
 
-void shift(GameState_t *gi) {
-  gi->now.y++;
-  gi->state = MOVING;
+void shift(GameState_t *gs) {
+  gs->now.y++;
+  gs->state = MOVING;
 }
 
-void finishGame(GameState_t *gi) {
-  gi->state = GAMEOVER;
+void finishGame(GameState_t *gs) {
+  gs->state = GAMEOVER;
 
-  if (gi->state != START) {
-    return;
-  }
+  freeFigure(&(gs->now));
+  freeFigure(&(gs->next));
 
-  freeFigure(&(gi->now));
-  freeFigure(&(gi->next));
-
-  for (int i = 0; i < HEIGHT; i++) free(gi->field[i]);
-  free(gi->field);
+  for (int i = 0; i < HEIGHT; i++) free(gs->field[i]);
+  free(gs->field);
+  gs->field = NULL;
 }
 
-void gameInit(GameState_t *gi) {
-  gi->time = getTime();
-  gi->speed = SPEED;
-  gi->now.form = NULL;
-  gi->now.size = 0;
-  gi->next.size = 0;
-  gi->next.form = NULL;
-  gi->state = SPAWN;
-  gi->score = 0;
-  gi->level = 0;
-  gi->pause = 0;
+void gameInit(GameState_t *gs) {
+  gs->time = getTime();
+  gs->speed = SPEED;
+  gs->addSpeed = 0;
+  gs->now.form = NULL;
+  gs->now.size = 0;
+  gs->next.size = 0;
+  gs->next.form = NULL;
+  gs->state = SPAWN;
+  gs->score = 0;
+  gs->level = 0;
+  gs->pause = 0;
 
-  gi->field = calloc(HEIGHT, sizeof(int *));
-  for (int i = 0; i < HEIGHT; i++) gi->field[i] = calloc(WIDTH, sizeof(int));
+  updateHighScore(gs);
+
+  gs->field = calloc(HEIGHT, sizeof(int *));
+  for (int i = 0; i < HEIGHT; i++) gs->field[i] = calloc(WIDTH, sizeof(int));
 }
 
 long long getTime() {
@@ -272,58 +271,66 @@ long long getTime() {
   return t.tv_sec * 1000 + t.tv_usec / 1000;
 }
 
-void timer(GameState_t *gi) {
+void timer(GameState_t *gs) {
   long long t = getTime();
 
-  if (t - gi->time >= gi->speed) {
-    gi->state = SHIFTING;
-    gi->time = t;
+  if (t - gs->time >= gs->speed) {
+    gs->state = SHIFTING;
+    gs->time = t;
   }
 }
 
-void updateGameField(GameState_t *gi) {
-  for (int i = 0; i < gi->now.size; i++) {
-    for (int j = 0; j < gi->now.size; j++) {
-      if (gi->now.form[i][j]) {
-        gi->field[i + gi->now.y][j + gi->now.x] = 1;
+void updateGameField(GameState_t *gs) {
+  for (int i = 0; i < gs->now.size; i++) {
+    for (int j = 0; j < gs->now.size; j++) {
+      if (gs->now.form[i][j]) {
+        gs->field[i + gs->now.y][j + gs->now.x] = 7;
       }
     }
   }
-  gi->state = SPAWN;
+  gs->state = SPAWN;
 }
 
-void deleteFullLines(GameState_t *gi) {
-  int stopF = 0;
+void deleteFullLines(GameState_t *gs) {
   int lines = 0;
   for (int i = 0; i < HEIGHT; i++) {
-    stopF = 0;
+    int stopF = 0;
     for (int j = 0; j < WIDTH && !stopF; j++) {
-      if (gi->field[i][j] != 1) stopF = 1;
+      if (gs->field[i][j] == 0) stopF = 1;
     }
     if (!stopF) {
       lines++;
       for (int n = i; n > 1; n--) {
-        int *temp = gi->field[n];
-        gi->field[n] = gi->field[n - 1];
-        gi->field[n - 1] = temp;
+        int *temp = gs->field[n];
+        gs->field[n] = gs->field[n - 1];
+        gs->field[n - 1] = temp;
       }
       for (int j = 0; j < WIDTH; j++) {
-        gi->field[1][j] = 0;
+        gs->field[1][j] = 0;
       }
     }
   }
 
-  gi->score += scoring(lines);
+  scoring(gs, lines);
 
-  getHighScore(gi->score);
-
-  if (checkTopBorder(gi))
-    gi->state = GAMEOVER;
+  if (checkTopBorder(gs) || gs->level == 10)
+    gs->state = GAMEOVER;
   else
-    gi->state = SPAWN;
+    gs->state = SPAWN;
 }
 
-int scoring(int num) {
+void scoring(GameState_t *gs, int n) {
+  gs->score += getScore(n);
+
+  if (gs->score / 600 - gs->level) {
+    gs->addSpeed -= 100;
+    gs->level++;
+  }
+
+  getHighScore(gs);
+}
+
+int getScore(int num) {
   int res = 0;
   switch (num) {
     case 1:
@@ -343,44 +350,36 @@ int scoring(int num) {
   return res;
 }
 
-void getHighScore(int score) {
-  FILE *high = fopen("brick_game/tetris/highscore.txt", "rt");
-  char *num = (char *)calloc(10, sizeof(char));
-  num = fgets(num, 10, high);
+void getHighScore(GameState_t *gs) {
+  if (gs->score > gs->high_score) {
+    gs->high_score = gs->score;
+    FILE *high = fopen(PATH_SCORE, "wt");
 
-  fclose(high);
-  high = fopen("brick_game/tetris/highscore.txt", "wt");
-
-  if (atoi(num) < score) {
-    fprintf(high, "%d", score);
-  } else {
-    fprintf(high, "%s", num);
+    if (high) {
+      fprintf(high, "%d", gs->high_score);
+      fclose(high);
+    }
   }
-  free(num);
-  fclose(high);
 }
 
-bool checkTopBorder(GameState_t *gi) {
+bool checkTopBorder(GameState_t const *gs) {
   bool res = FALSE;
   for (int j = 0; j < WIDTH && !res; j++) {
-    if (gi->field[0][j] == 1) res = TRUE;
+    if (gs->field[0][j]) res = TRUE;
   }
   return res;
 }
 
-bool checkLeftBorder(int **field, Figure_t form) {
+bool checkLeftBorder(GameState_t const *gs) {
   bool res = 0;
+  int x = gs->now.x;
+  int y = gs->now.y;
 
-  int x = form.x;
-  int y = form.y;
-
-  int stopF = 0;
-
-  for (int i = 0; i < form.size && !res; i++) {
-    stopF = 0;
-    for (int j = 0; j < form.size && !res && !stopF; j++) {
-      if (form.form[i][j]) {
-        if (j + x - 1 < 0 || field[i + y][j + x - 1] != 0) {
+  for (int i = 0; i < gs->now.size && !res; i++) {
+    int stopF = 0;
+    for (int j = 0; j < gs->now.size && !res && !stopF; j++) {
+      if (gs->now.form[i][j]) {
+        if (j + x - 1 < 0 || gs->field[i + y][j + x - 1] != 0) {
           res = TRUE;
         }
         stopF = 1;
@@ -390,19 +389,17 @@ bool checkLeftBorder(int **field, Figure_t form) {
   return res;
 }
 
-bool checkRightBorder(int **field, Figure_t form) {
+bool checkRightBorder(GameState_t const *gs) {
   bool res = FALSE;
 
-  int x = form.x;
-  int y = form.y;
+  int x = gs->now.x;
+  int y = gs->now.y;
 
-  int stopF = 0;
-
-  for (int i = 0; i < form.size && !res; i++) {
-    stopF = 0;
-    for (int j = form.size - 1; j >= 0 && !res && !stopF; j--) {
-      if (form.form[i][j]) {
-        if (j + x + 1 >= WIDTH || field[i + y][j + x + 1] != 0) {
+  for (int i = 0; i < gs->now.size && !res; i++) {
+    int stopF = 0;
+    for (int j = gs->now.size - 1; j >= 0 && !res && !stopF; j--) {
+      if (gs->now.form[i][j]) {
+        if (j + x + 1 >= WIDTH || gs->field[i + y][j + x + 1] != 0) {
           res = TRUE;
         }
         stopF = 1;
@@ -412,19 +409,17 @@ bool checkRightBorder(int **field, Figure_t form) {
   return res;
 }
 
-bool checkBottomBorder(int **field, Figure_t form) {
+bool checkBottomBorder(GameState_t const *gs) {
   bool res = FALSE;
 
-  int x = form.x;
-  int y = form.y;
+  int x = gs->now.x;
+  int y = gs->now.y;
 
-  int stopF = 0;
-
-  for (int j = 0; j < form.size && !res; j++) {
-    stopF = 0;
-    for (int i = form.size - 1; i >= 0 && !res && !stopF; i--) {
-      if (form.form[i][j]) {
-        if (i + y + 1 >= HEIGHT || field[i + y + 1][j + x] != 0) {
+  for (int j = 0; j < gs->now.size && !res; j++) {
+    int stopF = 0;
+    for (int i = gs->now.size - 1; i >= 0 && !res && !stopF; i--) {
+      if (gs->now.form[i][j]) {
+        if (i + y + 1 >= HEIGHT || gs->field[i + y + 1][j + x] != 0) {
           res = TRUE;
         }
         stopF = 1;
@@ -434,27 +429,30 @@ bool checkBottomBorder(int **field, Figure_t form) {
   return res;
 }
 
-bool checkRotateByBorder(int **field, Figure_t form) {
+bool checkRotateByBorder(GameState_t const *gs) {
   bool res = FALSE;
 
-  int x = form.x;
-  int y = form.y;
+  int x = gs->now.x;
+  int y = gs->now.y;
 
   Figure_t temp;
-  int size = form.size;
+  int size = gs->now.size;
   createFigure(&temp, size, 0);
-  rotate90(form, &temp, size);
+  rotate90(gs->now, &temp, size);
 
-  for (int i = 0; i < form.size && !res; i++) {
-    for (int j = 0; j < form.size && !res; j++) {
-      if (temp.form[i][j] && !form.form[i][j]) {
-        if (i + y >= HEIGHT || j + x < 0 || j + x >= WIDTH ||
-            field[i + y][j + x] != 0) {
+  for (int i = 0; i < gs->now.size && !res; i++) {
+    for (int j = 0; j < gs->now.size && !res; j++) {
+      if (temp.form[i][j] && !gs->now.form[i][j]) {
+        if (i + y < 0 || i + y >= HEIGHT || j + x < 0 || j + x >= WIDTH ||
+            gs->field[i + y][j + x] != 0) {
           res = TRUE;
         }
       }
     }
   }
+
+  freeFigure(&temp);
+
   return res;
 }
 
@@ -482,55 +480,55 @@ void figureGenerate(Figure_t *form, FigureType_t type) {
     case Ofigure: {
       int size = 2;
       createFigure(form, size, 0);
-      form->form[0][0] = 1;
-      form->form[0][1] = 1;
-      form->form[1][0] = 1;
-      form->form[1][1] = 1;
+      form->form[0][0] = 2;
+      form->form[0][1] = 2;
+      form->form[1][0] = 2;
+      form->form[1][1] = 2;
       break;
     }
     case Lfigure: {
       int size = 3;
       createFigure(form, size, 0);
-      form->form[0][1] = 1;
-      form->form[1][1] = 1;
-      form->form[2][1] = 1;
-      form->form[2][2] = 1;
+      form->form[0][1] = 3;
+      form->form[1][1] = 3;
+      form->form[2][1] = 3;
+      form->form[2][2] = 3;
       break;
     }
     case Ifigure: {
       int size = 4;
       createFigure(form, size, 0);
-      form->form[0][2] = 1;
-      form->form[1][2] = 1;
-      form->form[2][2] = 1;
-      form->form[3][2] = 1;
+      form->form[0][2] = 4;
+      form->form[1][2] = 4;
+      form->form[2][2] = 4;
+      form->form[3][2] = 4;
       break;
     }
     case Sfigure: {
       int size = 3;
       createFigure(form, size, -1);
-      form->form[1][0] = 1;
-      form->form[1][1] = 1;
-      form->form[2][1] = 1;
-      form->form[2][2] = 1;
+      form->form[1][0] = 5;
+      form->form[1][1] = 5;
+      form->form[2][1] = 5;
+      form->form[2][2] = 5;
       break;
     }
     case Zfigure: {
       int size = 3;
       createFigure(form, size, -1);
-      form->form[1][2] = 1;
-      form->form[1][1] = 1;
-      form->form[2][1] = 1;
-      form->form[2][0] = 1;
+      form->form[1][2] = 5;
+      form->form[1][1] = 5;
+      form->form[2][1] = 5;
+      form->form[2][0] = 5;
       break;
     }
     case Jfigure: {
       int size = 3;
       createFigure(form, size, 0);
-      form->form[0][1] = 1;
-      form->form[1][1] = 1;
-      form->form[2][1] = 1;
-      form->form[2][0] = 1;
+      form->form[0][1] = 6;
+      form->form[1][1] = 6;
+      form->form[2][1] = 6;
+      form->form[2][0] = 6;
       break;
     }
     default:

@@ -1,0 +1,61 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\geometry{margin=2cm}
+
+\title{Документация к проекту Tetris}
+\author{by youngtar}
+\date{\today}
+
+% Оформление кода
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  language=C
+}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{Описание проекта}
+
+Проект реализует консольную игру Tetris на языке C с использованием библиотеки ncurses.
+
+\section{Файловая структура}
+
+\begin{itemize}
+  \item \texttt{brick\_game/tetris} — логика игры
+  \item \texttt{gui/cli/} — отрисовка
+  \item \texttt{tests/} — модульные тесты
+  \item \texttt{Makefile} — сборка проекта
+  \item \texttt{brick\_game.*} — файлы для запуска игры
+\end{itemize}
+
+\section{Как собрать и запустить проект}
+
+\begin{verbatim}
+make
+make run
+\end{verbatim}
+
+\section{Тестирование}
+
+\begin{verbatim}
+make test
+make gcov_report
+\end{verbatim}
+
+\end{document}

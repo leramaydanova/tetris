@@ -1,15 +1,19 @@
 #ifndef FRONTEND_H
 #define FRONTEND_H
 
-#include "../../tetris.h"
+#include "../../brick_game.h"
 
-void render(GameInfo_t* gi, State_t state);
-void showGameOver(); 
-void printField(GameInfo_t* gi);
-void printInfo(GameInfo_t *gi);
+void render(GameInfo_t const *, State_t);
+void showGameOver();
+void printField(GameInfo_t const *);
+void printInfo(GameInfo_t const *);
 void printStart();
-void showNextFigure(GameInfo_t *gi);
+void showNextFigure(GameInfo_t const *);
 void printPauseScreen();
 void printControls();
+void printWin(GameInfo_t const *);
+void printGame(GameInfo_t const *);
+void initColors();
+void clearScreen();
 
 #endif
